@@ -173,7 +173,7 @@ class ToolsVm(app: Application) : AndroidViewModel(app) {
     var statusOk by mutableStateOf(false); private set
     private var job: Job? = null
 
-    fun setTool(t: Tool) { tool = t; status = null; extra = extra.copy(pw = ""); pw2 = ""; if (t != Tool.Merge) files = files.take(1) }
+    fun selectTool(t: Tool) { tool = t; status = null; extra = extra.copy(pw = ""); pw2 = ""; if (t != Tool.Merge) files = files.take(1) }
     fun reverse() { files = files.reversed() }
     fun remove(i: Int) { files = files.filterIndexed { k, _ -> k != i } }
     fun move(i: Int, d: Int) {
@@ -252,7 +252,7 @@ fun ToolsScreen(vm: ToolsVm = viewModel(), back: () -> Unit) {
             Text("PDF Tools", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tool.entries.forEach { t -> FilterChip(vm.tool == t, { if (!vm.busy) vm.setTool(t) }, { Text(t.label) }) }
+            Tool.entries.forEach { t -> FilterChip(vm.tool == t, { if (!vm.busy) vm.selectTool(t) }, { Text(t.label) }) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { if (vm.tool == Tool.Merge) pickMany.launch(arrayOf("application/pdf")) else pickOne.launch(arrayOf("application/pdf")) },
