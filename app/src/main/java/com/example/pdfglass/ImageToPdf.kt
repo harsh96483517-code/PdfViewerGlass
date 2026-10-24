@@ -1,9 +1,12 @@
 package com.example.pdfglass
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -65,7 +68,8 @@ class PdfVm : ViewModel() {
 fun ImageToPdfScreen(vm: PdfVm = viewModel(), back: () -> Unit) {
     val ctx = LocalContext.current
     val g = LocalGlass.current
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { vm.add(it) }
+    val gallery = rememberLauncherForActivityResult(PickImagesFromGallery()) { vm.add(it) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { vm.add(it) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { u ->
         if (u != null) vm.export(ctx, u)
     }
@@ -77,14 +81,15 @@ fun ImageToPdfScreen(vm: PdfVm = viewModel(), back: () -> Unit) {
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                    Text("Add photos")
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { gallery.launch(Unit) }) { Text("Add from Gallery") }
+                OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    Text("Photo picker")
                 }
                 OutlinedButton(onClick = vm::reverse, enabled = vm.images.size > 1) { Text("Reverse order") }
             }
         }
-        if (vm.images.isEmpty()) item { Text("No photos yet. Tap “Add photos” to select several at once.", color = g.subtext) }
+        if (vm.images.isEmpty()) item { Text("No photos yet. Tap “Add from Gallery” to pick several photos straight from your Samsung Gallery at once.", color = g.subtext) }
         itemsIndexed(vm.images, key = { _, u -> u.toString() }) { i, u ->
             GlassCard(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -121,5 +126,29 @@ fun ImageToPdfScreen(vm: PdfVm = viewModel(), back: () -> Unit) {
             }
             vm.status?.let { Text(it, Modifier.padding(top = 8.dp), color = g.accent) }
         }
+    }
+}
+
+/**
+ * Lets the user pick several images straight from their Gallery app (e.g. Samsung Gallery).
+ * Uses ACTION_GET_CONTENT with multi-select, wrapped in a chooser so the Gallery app is offered
+ * alongside any other installed source.
+ */
+class PickImagesFromGallery : ActivityResultContract<Unit, List<Uri>>() {
+    override fun createIntent(context: Context, input: Unit): Intent {
+        val inner = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "image/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+        return Intent.createChooser(inner, "Select photos")
+    }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): List<Uri> {
+        if (resultCode != Activity.RESULT_OK || intent == null) return emptyList()
+        val out = mutableListOf<Uri>()
+        intent.clipData?.let { c -> for (i in 0 until c.itemCount) c.getItemAt(i)?.uri?.let(out::add) }
+        intent.data?.let { out.add(it) }
+        return out
     }
 }
