@@ -28,11 +28,19 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+      - name: Decode release keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.p12"
+
+      - name: Build release APK (signed)
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release.p12
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PdfViewerGlass-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: PdfViewerGlass-release
+          path: app/build/outputs/apk/release/*.apk
